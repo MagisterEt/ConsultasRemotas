@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Consultas SQL</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🗄️ Sistema de Consultas SQL</h1>
+            <p class="subtitle">Consultas ao banco de dados AASI</p>
+            <div class="server-status">
+                <span class="status-indicator" id="statusIndicator">●</span>
+                <span id="statusText">Verificando...</span>
+                <button class="btn-refresh" onclick="verificarStatusServidor()" title="Atualizar status">🔄</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="card">
+            <form id="consultaForm" onsubmit="event.preventDefault(); executarConsulta();">
+                
+                <!-- Dropdown de Tipo de Consulta -->
+                <div class="form-group">
+                    <label for="tipoConsulta">Tipo de Consulta</label>
+                    <select id="tipoConsulta" name="tipo" required onchange="atualizarCamposFormulario(this.value)">
+                        <option value="">Carregando...</option>
+                    </select>
+                </div>
+
+                <!-- Campo Entidade -->
+                <div class="form-group" id="entidadeGroup" style="display: none;">
+                    <label for="entidade">Entidade</label>
+                    <input type="text" id="entidade" name="entidade" placeholder="Ex: 3123" maxlength="10">
+                </div>
+
+                <!-- Campo Ano -->
+                <div class="form-group" id="anoGroup" style="display: none;">
+                    <label for="ano">Ano</label>
+                    <select id="ano" name="ano">
+                        <option value="2023">2023</option>
+                        <option value="2024">2024</option>
+                        <option value="2025" selected>2025</option>
+                        <option value="2026">2026</option>
+                    </select>
+                </div>
+
+                <!-- Campo Período -->
+                <div class="form-group" id="periodoGroup" style="display: none;">
+                    <label for="periodo">Período (Mês)</label>
+                    <select id="periodo" name="periodo">
+                        <option value="1">Janeiro</option>
+                        <option value="2">Fevereiro</option>
+                        <option value="3">Março</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Maio</option>
+                        <option value="6">Junho</option>
+                        <option value="7">Julho</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Setembro</option>
+                        <option value="10">Outubro</option>
+                        <option value="11">Novembro</option>
+                        <option value="12" selected>Dezembro</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="saldoAnteriorGroup" style="display: none;">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="incluirSaldoAnterior" name="incluir_saldo_anterior">
+                        <span>💳 Incluir Saldo Anterior (mês retrasado)</span>
+                    </label>
+                    <small style="color: #666; font-size: 0.9em; display: block; margin-top: 4px;">
+                        Adiciona uma coluna "Origem" indicando se é saldo atual ou anterior
+                    </small>
+                </div>
+
+                <!-- Campo Meses Atrás -->
+                <div class="form-group" id="mesesAtrasGroup" style="display: none;">
+                    <label for="mesesAtras">Quantos meses atrás?</label>
+                    <select id="mesesAtras" name="meses_atras">
+                        <option value="1">1 mês atrás</option>
+                        <option value="2" selected>2 meses atrás</option>
+                        <option value="3">3 meses atrás</option>
+                        <option value="4">4 meses atrás</option>
+                        <option value="5">5 meses atrás</option>
+                        <option value="6">6 meses atrás</option>
+                    </select>
+                    <small style="color: #666; font-size: 0.9em; display: block; margin-top: 4px;">
+                        Calcula o saldo até o fim do mês selecionado
+                    </small>
+                </div>
+
+                <!-- Campo Data Limite -->
+                <div class="form-group" id="dataLimiteGroup" style="display: none;">
+                    <label for="dataLimite">Data Limite</label>
+                    <input type="date" id="dataLimite" name="data_limite" 
+                           title="Selecione a data limite para a consulta">
+                    <small style="color: #666; font-size: 0.9em; display: block; margin-top: 4px;">
+                        Consulta irá buscar lançamentos até esta data (inclusive)
+                    </small>
+                </div>
+
+                <!-- Campo Código Imobilizado -->
+                <div class="form-group" id="codigoGroup" style="display: none;">
+                    <label for="codigoImobilizado">Código do Imobilizado (Opcional)</label>
+                    <input type="text" id="codigoImobilizado" name="codigo_imobilizado" 
+                           placeholder="Deixe em branco para todos">
+                </div>
+
+                <!-- Campo SQL Personalizado -->
+                <div class="form-group" id="sqlGroup" style="display: none;">
+                    <label for="sqlPersonalizado">SQL Personalizado</label>
+                    <textarea id="sqlPersonalizado" name="sql_personalizado" rows="10" 
+                              placeholder="Digite sua query SQL aqui...
+Exemplo: SELECT * FROM Vw_Lotes WHERE year = 2025"></textarea>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="button-group">
+                    <button type="submit" class="btn btn-primary" id="consultarBtn">
+                        <span class="btn-icon">🔍</span> Consultar
+                    </button>
+                    <button type="button" class="btn btn-danger" id="cancelarBtn" onclick="cancelarConsulta()" style="display: none;">
+                        <span class="btn-icon">⛔</span> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="limparBtn" onclick="limparFormulario()">
+                        <span class="btn-icon">🗑️</span> Limpar
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Loading -->
+        <div id="loadingDiv" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p id="loadingText">Executando consulta...</p>
+            <button type="button" class="btn btn-danger btn-cancel-loading" onclick="cancelarConsulta()">
+                <span class="btn-icon">⛔</span> Cancelar Consulta
+            </button>
+        </div>
+
+        <div id="logsPainelDiv" class="card" style="display: none; margin-top: 20px;">
+            <div class="logs-header">
+                <h3>📋 Progresso da Consulta</h3>
+                <div class="logs-actions">
+                    <button class="btn-cancel-small" onclick="cancelarConsulta()" id="cancelarLogsBtn" title="Cancelar consulta">
+                        ⛔ Cancelar
+                    </button>
+                    <button class="btn-clear-logs" onclick="limparLogs()" title="Limpar logs">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+            <div id="logsContainer" class="logs-container">
+                <!-- Logs aparecem aqui dinamicamente -->
+            </div>
+        </div>
+
+        <!-- Resultados -->
+        <div id="resultadoDiv" style="display: none;">
+            <div class="card">
+                <div class="result-header">
+                    <h2>📄 Resultados</h2>
+                    <div class="export-buttons">
+                        <button class="btn btn-copy" id="copiarBtn" onclick="copiarResultados()" title="Copiar para área de transferência">
+                            <span class="btn-icon">📋</span> Copiar
+                        </button>
+                        <button class="btn btn-cloud" id="sharepointBtn" onclick="enviarParaSharePoint()" title="Enviar para SharePoint">
+                            <span class="btn-icon">☁️</span> SharePoint
+                        </button>
+                        <button class="btn btn-success" id="exportarExcel" onclick="exportarExcel()" title="Exportar como Excel">
+                            <span class="btn-icon">📊</span> Excel
+                        </button>
+                        <button class="btn btn-info" id="exportarCSV" onclick="exportarCSV()" title="Exportar como CSV">
+                            <span class="btn-icon">📄</span> CSV
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="result-info">
+                    <p id="resultadoInfo"></p>
+                </div>
+
+                <div class="table-container">
+                    <table id="resultadoTable">
+                        <thead id="tableHead"></thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mensagem de Erro -->
+        <div id="errorDiv" class="error-message" style="display: none;"></div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Sistema de Consultas SQL - USEB</p>
+        </div>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="/static/js/script.js"></script>
+</body>
+</html>
