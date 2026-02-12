@@ -239,7 +239,8 @@ public class QueryExecutorService : IQueryExecutorService
         {
             await _logStreamService.LogAsync(requestId, $"[{server.Name}] Conectando...");
 
-            var connectionString = server.GetConnectionString(database);
+            var (resolvedUser, resolvedPassword) = ResolveServerCredentials(server, database);
+            var connectionString = server.GetConnectionString(database, resolvedUser, resolvedPassword);
 
             await using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync(cancellationToken);
@@ -298,6 +299,61 @@ public class QueryExecutorService : IQueryExecutorService
         }
 
         return result;
+    }
+
+
+    private static string? ReadEnv(params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            var value = Environment.GetEnvironmentVariable(key);
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value.Trim();
+            }
+        }
+
+        return null;
+    }
+
+    private (string User, string Password) ResolveServerCredentials(SqlServerInfo server, string? database)
+    {
+        var isApsDatabase = !string.IsNullOrWhiteSpace(database)
+            && database.Contains("aps", StringComparison.OrdinalIgnoreCase);
+
+        var fallbackUser = isApsDatabase
+            ? ReadEnv("SQL_USER_APS", "SQL_USER", "SqlServer__Servers__0__User")
+            : ReadEnv("SQL_USER", "SQL_USER_APS", "SqlServer__Servers__0__User");
+
+        var fallbackPassword = isApsDatabase
+            ? ReadEnv("SQL_PASSWORD_APS", "SQL_PASSWORD", "SqlServer__Servers__0__Password")
+            : ReadEnv("SQL_PASSWORD", "SQL_PASSWORD_APS", "SqlServer__Servers__0__Password");
+
+        var configuredUser = _sqlSettings.Servers
+            .Select(s => s.User)
+            .FirstOrDefault(u => !string.IsNullOrWhiteSpace(u));
+
+        var configuredPassword = _sqlSettings.Servers
+            .Select(s => s.Password)
+            .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p));
+
+        var resolvedUser = string.IsNullOrWhiteSpace(server.User)
+            ? (fallbackUser ?? configuredUser)
+            : server.User;
+
+        var resolvedPassword = string.IsNullOrWhiteSpace(server.Password)
+            ? (fallbackPassword ?? configuredPassword)
+            : server.Password;
+
+        if (string.IsNullOrWhiteSpace(resolvedUser) || string.IsNullOrWhiteSpace(resolvedPassword))
+        {
+            throw new InvalidOperationException(
+                $"Credenciais SQL não configuradas para o servidor '{server.Name}'. " +
+                "Preencha SqlServer:Servers:<index>:User/Password no appsettings ou defina SQL_USER/SQL_PASSWORD (e SQL_USER_APS/SQL_PASSWORD_APS para APS). Em Docker Compose, também aceitamos SqlServer__Servers__0__User/Password e reaproveitamos credenciais já resolvidas em outros servidores configurados."
+            );
+        }
+
+        return (resolvedUser, resolvedPassword);
     }
 
     public void CancelQuery(string requestId)
