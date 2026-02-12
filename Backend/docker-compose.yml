@@ -1,0 +1,96 @@
+services:
+  consultas-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: consultas-remotas-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+
+      # SQL Server - todos os servidores usam as mesmas credenciais base
+      # Também expõe SQL_* para fallback em runtime dentro do container
+      - SQL_USER=${SQL_USER}
+      - SQL_PASSWORD=${SQL_PASSWORD}
+      - SQL_USER_APS=${SQL_USER_APS}
+      - SQL_PASSWORD_APS=${SQL_PASSWORD_APS}
+
+      - SqlServer__Servers__0__User=${SQL_USER}
+      - SqlServer__Servers__0__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__1__User=${SQL_USER}
+      - SqlServer__Servers__1__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__2__User=${SQL_USER}
+      - SqlServer__Servers__2__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__3__User=${SQL_USER}
+      - SqlServer__Servers__3__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__4__User=${SQL_USER}
+      - SqlServer__Servers__4__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__5__User=${SQL_USER}
+      - SqlServer__Servers__5__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__6__User=${SQL_USER}
+      - SqlServer__Servers__6__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__7__User=${SQL_USER}
+      - SqlServer__Servers__7__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__8__User=${SQL_USER}
+      - SqlServer__Servers__8__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__9__User=${SQL_USER}
+      - SqlServer__Servers__9__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__10__User=${SQL_USER}
+      - SqlServer__Servers__10__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__11__User=${SQL_USER}
+      - SqlServer__Servers__11__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__12__User=${SQL_USER}
+      - SqlServer__Servers__12__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__13__User=${SQL_USER}
+      - SqlServer__Servers__13__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__14__User=${SQL_USER}
+      - SqlServer__Servers__14__Password=${SQL_PASSWORD}
+
+      # Azure AD Config
+      - AzureAd__TenantId=${AZURE_TENANT_ID}
+      - AzureAd__ClientId=${AZURE_CLIENT_ID}
+      - AzureAd__ClientSecret=${AZURE_CLIENT_SECRET}
+
+      # SharePoint Config
+      - SharePoint__SiteId=${SHAREPOINT_SITE_ID}
+      - SharePoint__DriveId=${SHAREPOINT_DRIVE_ID}
+
+      # Performance tuning
+      - DOTNET_gcServer=1
+      - DOTNET_GCHeapHardLimit=2000000000
+
+    volumes:
+      - ./logs:/app/logs
+      - ./static:/app/wwwroot
+    networks:
+      - consultas-network
+
+    # Limites de recursos (ajuste conforme necessário)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  consultas-network:
+    driver: bridge
+
+volumes:
+  logs:
