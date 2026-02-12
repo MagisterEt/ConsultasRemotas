@@ -13,6 +13,21 @@ let consultaEmAndamento = false;
 let intervalLogs = null;
 let ultimoLogIndex = 0;
 
+
+async function fetchJsonWithFallback(urls) {
+    let lastError = null;
+    for (const url of urls) {
+        try {
+            const response = await fetch(url, { cache: 'no-cache' });
+            if (!response.ok) throw new Error(`HTTP ${response.status} em ${url}`);
+            return await response.json();
+        } catch (err) {
+            lastError = err;
+        }
+    }
+    throw lastError || new Error('Falha ao carregar dados');
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     verificarStatusServidor();
     carregarConsultasDisponiveis();
@@ -23,15 +38,36 @@ document.addEventListener('DOMContentLoaded', function() {
 // Carregar consultas
 // ============================================================
 function carregarConsultasDisponiveis() {
-    fetch('/api/consultas/disponiveis')
-        .then(response => response.json())
+    fetchJsonWithFallback(['/api/consultas/disponiveis', '/api/consultas_disponiveis'])
         .then(data => {
-            const consultas = Array.isArray(data) ? data : (data.consultas || []);
+            let consultas = [];
+            if (Array.isArray(data)) {
+                consultas = data;
+            } else if (Array.isArray(data.consultas)) {
+                consultas = data.consultas;
+            } else if (Array.isArray(data)) {
+                consultas = data;
+            }
+
             consultasDisponiveis = {};
-            consultas.forEach(c => consultasDisponiveis[c.tipo] = c);
-            popularDropdownConsultas(consultas);
+            consultas.forEach(c => {
+                const tipo = c.tipo || c.id;
+                if (!tipo) return;
+                consultasDisponiveis[tipo] = {
+                    ...c,
+                    tipo,
+                    requer_entidade: c.requer_entidade ?? c.parametros?.some?.(p => p.nome === 'entidade' && p.obrigatorio) ?? false,
+                    requer_ano: c.requer_ano ?? c.parametros?.some?.(p => p.nome === 'ano' && p.obrigatorio) ?? false,
+                    requer_periodo: c.requer_periodo ?? c.parametros?.some?.(p => p.nome === 'periodo' && p.obrigatorio) ?? false
+                };
+            });
+
+            popularDropdownConsultas(Object.values(consultasDisponiveis));
         })
-        .catch(error => console.error('Erro:', error));
+        .catch(error => {
+            console.error('Erro ao carregar consultas disponíveis:', error);
+            mostrarErro('Não foi possível carregar as consultas. Atualize a página ou verifique a API.');
+        });
 }
 
 function popularDropdownConsultas(consultas) {
@@ -86,11 +122,12 @@ function esconderTodosCampos() {
 // Status
 // ============================================================
 function verificarStatusServidor() {
-    fetch('/api/status', { method: 'GET', cache: 'no-cache' })
-        .then(r => r.json())
+    fetchJsonWithFallback(['/api/status'])
         .then(data => {
             const indicator = document.getElementById('statusIndicator');
             const text = document.getElementById('statusText');
+            if (!indicator || !text) return;
+
             if (data.status === 'online') {
                 indicator.className = 'status-indicator online';
                 text.textContent = 'Online';
@@ -99,10 +136,16 @@ function verificarStatusServidor() {
                 }
             } else {
                 indicator.className = 'status-indicator offline';
-                text.textContent = `Offline - ${data.mensagem}`;
+                text.textContent = `Offline${data.mensagem ? ' - ' + data.mensagem : ''}`;
             }
         })
-        .catch(() => {});
+        .catch((error) => {
+            const indicator = document.getElementById('statusIndicator');
+            const text = document.getElementById('statusText');
+            if (indicator) indicator.className = 'status-indicator offline';
+            if (text) text.textContent = 'Offline - API indisponível';
+            console.error('Erro ao consultar status da API:', error);
+        });
 }
 
 // ============================================================
@@ -245,7 +288,6 @@ function executarConsultaPreDefinida(tipo, formData) {
             return;
         }
 
-        codex/fix-version-conflict-for-diagnosticsource-wz062u
         const normalizado = normalizarResultadoApi(data);
         dadosConsulta = normalizado.dados || [];
         colunasOrdenadas = normalizado.colunas || [];
@@ -260,17 +302,7 @@ function executarConsultaPreDefinida(tipo, formData) {
             iniciarSSE(requestIdAtual);
         } else {
             mostrarResultados(normalizado);
-
-        dadosConsulta = data.dados || [];
-        colunasOrdenadas = data.colunas || [];
-        requestIdAtual = data.request_id || null;
-
-        if (data.avisos && data.avisos.length) {
-            data.avisos.forEach(a => adicionarLog('⚠️ ' + a, 'warning'));
-        claude/optimize-csharp-ubuntu-du8RP
         }
-
-        mostrarResultados(data);
     })
     .catch(e => {
         esconderLoading();
@@ -282,7 +314,6 @@ function executarConsultaPreDefinida(tipo, formData) {
 // ============================================================
 // Multi-servidor
 // ============================================================
-        codex/fix-version-conflict-for-diagnosticsource-wz062u
 function executarConsultaMultiServidor(tipo, formData, consulta) {
     mostrarPainelLogs();
     limparLogs();
@@ -352,18 +383,6 @@ function buscarResultado(requestId) {
             esconderLoading();
             finalizarConsulta();
         });
-
-function executarConsultaMultiServidor(...args) {
-    console.warn('executarConsultaMultiServidor desativado: usando /api/consultas/executar');
-}
-
-function iniciarSSE(...args) {
-    console.warn('iniciarSSE desativado: usando /api/consultas/executar');
-}
-
-function buscarResultado(...args) {
-    console.warn('buscarResultado desativado: usando /api/consultas/executar');
-        claude/optimize-csharp-ubuntu-du8RP
 }
 
 function mostrarPainelLogs() {
