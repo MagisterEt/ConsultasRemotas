@@ -28,7 +28,7 @@ RUN dotnet publish "ConsultasRemotas.Api.csproj" \
     /p:PublishTrimmed=false
 
 # Stage 3: Runtime (Ubuntu Jammy - 22.04 LTS)
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-jammy-chiseled AS final
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-jammy AS final
 
 # Instalar dependências necessárias para SQL Server
 USER root
@@ -72,8 +72,8 @@ ENV ASPNETCORE_ENVIRONMENT=Production \
 # Expor porta
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+# Health check (curl já instalado no stage anterior)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
 # Executar aplicação
