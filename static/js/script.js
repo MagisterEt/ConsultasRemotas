@@ -10,6 +10,8 @@ let consultasDisponiveis = {};
 let eventSource = null;
 let requestIdAtual = null;
 let consultaEmAndamento = false;
+let intervalLogs = null;
+let ultimoLogIndex = 0;
 
 document.addEventListener('DOMContentLoaded', function() {
     verificarStatusServidor();
@@ -243,12 +245,29 @@ function executarConsultaPreDefinida(tipo, formData) {
             return;
         }
 
+        codex/fix-version-conflict-for-diagnosticsource-wz062u
+        const normalizado = normalizarResultadoApi(data);
+        dadosConsulta = normalizado.dados || [];
+        colunasOrdenadas = normalizado.colunas || [];
+        requestIdAtual = data.request_id || null;
+
+        if (normalizado.avisos && normalizado.avisos.length) {
+            mostrarPainelLogs();
+            normalizado.avisos.forEach(a => adicionarLog('⚠️ ' + a, 'warning'));
+        }
+
+        if (requestIdAtual) {
+            iniciarSSE(requestIdAtual);
+        } else {
+            mostrarResultados(normalizado);
+
         dadosConsulta = data.dados || [];
         colunasOrdenadas = data.colunas || [];
         requestIdAtual = data.request_id || null;
 
         if (data.avisos && data.avisos.length) {
             data.avisos.forEach(a => adicionarLog('⚠️ ' + a, 'warning'));
+        claude/optimize-csharp-ubuntu-du8RP
         }
 
         mostrarResultados(data);
@@ -263,6 +282,77 @@ function executarConsultaPreDefinida(tipo, formData) {
 // ============================================================
 // Multi-servidor
 // ============================================================
+        codex/fix-version-conflict-for-diagnosticsource-wz062u
+function executarConsultaMultiServidor(tipo, formData, consulta) {
+    mostrarPainelLogs();
+    limparLogs();
+    adicionarLog('🚀 Iniciando consulta...', 'info');
+
+    executarConsultaPreDefinida(tipo, formData);
+}
+
+function iniciarSSE(requestId) {
+    if (!requestId) return;
+
+    if (intervalLogs) {
+        clearInterval(intervalLogs);
+        intervalLogs = null;
+    }
+
+    ultimoLogIndex = 0;
+    requestIdAtual = requestId;
+
+    const poll = () => {
+        fetch(`/api/logs/${requestId}`)
+            .then(r => r.json())
+            .then(data => {
+                const logs = data.logs || [];
+                for (let i = ultimoLogIndex; i < logs.length; i++) {
+                    const msg = logs[i];
+                    let tipo = 'info';
+                    const lower = msg.toLowerCase();
+                    if (lower.includes('erro')) tipo = 'error';
+                    else if (lower.includes('conclu') || lower.includes('sucesso')) tipo = 'success';
+                    else if (lower.includes('cancel')) tipo = 'warning';
+                    adicionarLog(msg, tipo);
+                }
+                ultimoLogIndex = logs.length;
+            })
+            .catch(() => {});
+
+        fetch(`/api/status/${requestId}`)
+            .then(r => r.json())
+            .then(status => {
+                const st = (status.status || '').toLowerCase();
+                if (st === 'completed' || st === 'error' || st === 'cancelled') {
+                    clearInterval(intervalLogs);
+                    intervalLogs = null;
+                    buscarResultado(requestId);
+                }
+            })
+            .catch(() => {});
+    };
+
+    poll();
+    intervalLogs = setInterval(poll, 2000);
+}
+
+function buscarResultado(requestId) {
+    fetch(`/api/resultado/${requestId}`)
+        .then(r => r.json())
+        .then(data => {
+            const normalizado = normalizarResultadoApi(data);
+            dadosConsulta = normalizado.dados || [];
+            colunasOrdenadas = normalizado.colunas || [];
+            mostrarResultados(normalizado);
+            esconderLoading();
+            finalizarConsulta();
+        })
+        .catch(() => {
+            esconderLoading();
+            finalizarConsulta();
+        });
+
 function executarConsultaMultiServidor(...args) {
     console.warn('executarConsultaMultiServidor desativado: usando /api/consultas/executar');
 }
@@ -273,6 +363,7 @@ function iniciarSSE(...args) {
 
 function buscarResultado(...args) {
     console.warn('buscarResultado desativado: usando /api/consultas/executar');
+        claude/optimize-csharp-ubuntu-du8RP
 }
 
 function mostrarPainelLogs() {
@@ -300,6 +391,30 @@ function adicionarLog(mensagem, tipo = 'info') {
     logItem.textContent = `[${hora}] ${mensagem}`;
     container.appendChild(logItem);
     container.scrollTop = container.scrollHeight;
+}
+
+
+function normalizarResultadoApi(data) {
+    if (data && data.dados) {
+        return {
+            ...data,
+            linhas_afetadas: data.total_linhas || data.dados.length,
+            tempo_total: data.tempo_segundos
+        };
+    }
+
+    if (data && data.results) {
+        return {
+            status: data.status || 'sucesso',
+            dados: data.results || [],
+            colunas: data.results && data.results.length ? Object.keys(data.results[0]) : [],
+            avisos: (data.errors || []).map(e => `${e.servidor || 'Servidor'}: ${e.error}`),
+            linhas_afetadas: data.total_rows || 0,
+            tempo_total: data.execution_time_ms ? (data.execution_time_ms / 1000).toFixed(2) : null
+        };
+    }
+
+    return { status: 'erro', dados: [], colunas: [], avisos: ['Resposta inválida da API'] };
 }
 
 // ============================================================
