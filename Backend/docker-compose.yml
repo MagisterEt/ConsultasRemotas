@@ -12,6 +12,12 @@ services:
       - ASPNETCORE_URLS=http://+:8080
 
       # SQL Server Config (substitua pelos valores reais)
+      # Disponibilizar variáveis base dentro do container (fallback de credenciais)
+      - SQL_USER=${SQL_USER}
+      - SQL_PASSWORD=${SQL_PASSWORD}
+      - SQL_USER_APS=${SQL_USER_APS}
+      - SQL_PASSWORD_APS=${SQL_PASSWORD_APS}
+
       - SqlServer__Servers__0__User=${SQL_USER}
       - SqlServer__Servers__0__Password=${SQL_PASSWORD}
 
