@@ -245,6 +245,7 @@ function executarConsultaPreDefinida(tipo, formData) {
             return;
         }
 
+        codex/fix-version-conflict-for-diagnosticsource-wz062u
         const normalizado = normalizarResultadoApi(data);
         dadosConsulta = normalizado.dados || [];
         colunasOrdenadas = normalizado.colunas || [];
@@ -259,7 +260,17 @@ function executarConsultaPreDefinida(tipo, formData) {
             iniciarSSE(requestIdAtual);
         } else {
             mostrarResultados(normalizado);
+
+        dadosConsulta = data.dados || [];
+        colunasOrdenadas = data.colunas || [];
+        requestIdAtual = data.request_id || null;
+
+        if (data.avisos && data.avisos.length) {
+            data.avisos.forEach(a => adicionarLog('⚠️ ' + a, 'warning'));
+        claude/optimize-csharp-ubuntu-du8RP
         }
+
+        mostrarResultados(data);
     })
     .catch(e => {
         esconderLoading();
@@ -271,6 +282,7 @@ function executarConsultaPreDefinida(tipo, formData) {
 // ============================================================
 // Multi-servidor
 // ============================================================
+        codex/fix-version-conflict-for-diagnosticsource-wz062u
 function executarConsultaMultiServidor(tipo, formData, consulta) {
     mostrarPainelLogs();
     limparLogs();
@@ -340,6 +352,18 @@ function buscarResultado(requestId) {
             esconderLoading();
             finalizarConsulta();
         });
+
+function executarConsultaMultiServidor(...args) {
+    console.warn('executarConsultaMultiServidor desativado: usando /api/consultas/executar');
+}
+
+function iniciarSSE(...args) {
+    console.warn('iniciarSSE desativado: usando /api/consultas/executar');
+}
+
+function buscarResultado(...args) {
+    console.warn('buscarResultado desativado: usando /api/consultas/executar');
+        claude/optimize-csharp-ubuntu-du8RP
 }
 
 function mostrarPainelLogs() {

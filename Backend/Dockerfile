@@ -13,6 +13,9 @@ RUN dotnet restore "ConsultasRemotas.Api/ConsultasRemotas.Api.csproj"
 # Copiar o resto dos arquivos
 COPY ConsultasRemotas.Api/. ./ConsultasRemotas.Api/
 
+# Garantir que wwwroot seja copiado (frontend)
+COPY ConsultasRemotas.Api/wwwroot ./ConsultasRemotas.Api/wwwroot
+
 # Build otimizado
 WORKDIR /src/ConsultasRemotas.Api
 RUN dotnet build "ConsultasRemotas.Api.csproj" -c Release -o /app/build
