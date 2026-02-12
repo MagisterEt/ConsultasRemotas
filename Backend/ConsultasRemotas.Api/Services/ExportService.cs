@@ -126,38 +126,39 @@ public class ExportService : IExportService
             throw new InvalidOperationException("Não há dados para exportar");
         }
 
-        return await Task.Run(() =>
+        var headers = data.First().Keys.ToList();
+
+        // Criar schema do Parquet (API versão 4.x)
+        var schema = new ParquetSchema(
+            headers.Select(h => new DataField<string>(h)).ToArray()
+        );
+
+        using var stream = new MemoryStream();
+
+        // Criar arquivo Parquet (API versão 4.x)
+        using (var parquetWriter = await ParquetWriter.CreateAsync(schema, stream))
         {
-            var headers = data.First().Keys.ToList();
+            parquetWriter.CompressionMethod = CompressionMethod.Snappy;
 
-            // Criar schema do Parquet
-            var fields = headers.Select(h => new DataField(h, typeof(string))).ToArray();
-            var schema = new Parquet.Data.Schema(fields);
-
-            using var stream = new MemoryStream();
-
-            // Criar arquivo Parquet
-            using (var parquetWriter = new ParquetWriter(schema, stream))
+            // Criar grupo de rows
+            using (var groupWriter = parquetWriter.CreateRowGroup())
             {
-                // Criar grupo de rows
-                using (var groupWriter = parquetWriter.CreateRowGroup())
+                // Escrever cada coluna
+                for (int i = 0; i < headers.Count; i++)
                 {
-                    // Escrever cada coluna
-                    foreach (var header in headers)
-                    {
-                        var columnData = data
-                            .Select(row => row.ContainsKey(header) ? ConvertToString(row[header]) : "")
-                            .ToArray();
+                    var header = headers[i];
+                    var columnData = data
+                        .Select(row => row.ContainsKey(header) ? ConvertToString(row[header]) : "")
+                        .ToArray();
 
-                        groupWriter.WriteColumn(new DataColumn(
-                            new DataField(header, typeof(string)),
-                            columnData));
-                    }
+                    await groupWriter.WriteColumnAsync(new DataColumn(
+                        schema.DataFields[i],
+                        columnData));
                 }
             }
+        }
 
-            return stream.ToArray();
-        });
+        return stream.ToArray();
     }
 
     public string GetContentType(string format)

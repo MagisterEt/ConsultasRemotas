@@ -18,7 +18,7 @@
 
     <!-- Microsoft Graph API para SharePoint -->
     <PackageReference Include="Microsoft.Graph" Version="5.42.0" />
-    <PackageReference Include="Azure.Identity" Version="1.10.4" />
+    <PackageReference Include="Azure.Identity" Version="1.13.1" />
 
     <!-- Excel e Data Processing -->
     <PackageReference Include="ClosedXML" Version="0.102.2" />
@@ -45,7 +45,7 @@
     <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
 
     <!-- Memory Cache e Performance -->
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.0" />
 
     <!-- CORS e Security -->
     <PackageReference Include="Microsoft.AspNetCore.Cors" Version="2.2.0" />
