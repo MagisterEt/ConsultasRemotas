@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultas Remotas - USEB</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Tela de Login -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-card">
+            <div class="logo">
+                <h1>🗄️ Consultas Remotas</h1>
+                <p class="subtitle">Sistema de Consultas SQL - USEB</p>
+            </div>
+            <div class="login-content">
+                <p class="login-info">Faça login com sua conta corporativa @adventistas.org</p>
+                <button id="loginButton" class="btn btn-primary">
+                    <span class="btn-icon">🔐</span> Entrar com Microsoft
+                </button>
+                <div id="loginError" class="error-message" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Aplicação Principal -->
+    <div id="appScreen" class="app-container" style="display: none;">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="container">
+                <div class="header-left">
+                    <h1>🗄️ Consultas Remotas</h1>
+                    <span class="badge">USEB</span>
+                </div>
+                <div class="header-right">
+                    <div class="user-info">
+                        <span class="user-name" id="userName">Usuário</span>
+                        <span class="user-email" id="userEmail">email@adventistas.org</span>
+                    </div>
+                    <button id="logoutButton" class="btn btn-secondary btn-sm">
+                        <span class="btn-icon">🚪</span> Sair
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container">
+            <!-- Formulário de Consulta -->
+            <div class="card">
+                <h2>📝 Nova Consulta</h2>
+                <form id="queryForm">
+                    <!-- Tipo de Consulta -->
+                    <div class="form-group">
+                        <label for="queryType">Tipo de Consulta</label>
+                        <select id="queryType" required>
+                            <option value="">Carregando...</option>
+                        </select>
+                    </div>
+
+                    <!-- Parâmetros Dinâmicos -->
+                    <div id="dynamicParams"></div>
+
+                    <!-- SQL Personalizado -->
+                    <div class="form-group" id="customSqlGroup" style="display: none;">
+                        <label for="customSql">SQL Personalizado</label>
+                        <textarea id="customSql" rows="6" placeholder="SELECT * FROM AASI.dbo.Tabela WHERE ..."></textarea>
+                    </div>
+
+                    <!-- Botões -->
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">
+                            <span class="btn-icon">🔍</span> Executar Consulta
+                        </button>
+                        <button type="button" id="clearBtn" class="btn btn-secondary">
+                            <span class="btn-icon">🗑️</span> Limpar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Loading -->
+            <div id="loadingDiv" class="loading-card" style="display: none;">
+                <div class="spinner"></div>
+                <p id="loadingText">Executando consulta...</p>
+                <button type="button" id="cancelBtn" class="btn btn-danger">
+                    <span class="btn-icon">⛔</span> Cancelar
+                </button>
+            </div>
+
+            <!-- Logs em Tempo Real -->
+            <div id="logsCard" class="card" style="display: none;">
+                <div class="logs-header">
+                    <h3>📋 Progresso</h3>
+                    <button id="clearLogsBtn" class="btn btn-sm btn-secondary">Limpar</button>
+                </div>
+                <div id="logsContainer" class="logs-container"></div>
+            </div>
+
+            <!-- Resultados -->
+            <div id="resultsCard" class="card" style="display: none;">
+                <div class="results-header">
+                    <div>
+                        <h2>📊 Resultados</h2>
+                        <p id="resultsInfo" class="results-info"></p>
+                    </div>
+                    <div class="export-buttons">
+                        <button id="copyBtn" class="btn btn-secondary btn-sm">
+                            <span class="btn-icon">📋</span> Copiar
+                        </button>
+                        <button id="exportCsvBtn" class="btn btn-info btn-sm">
+                            <span class="btn-icon">📄</span> CSV
+                        </button>
+                        <button id="exportExcelBtn" class="btn btn-success btn-sm">
+                            <span class="btn-icon">📊</span> Excel
+                        </button>
+                        <button id="sharePointBtn" class="btn btn-cloud btn-sm">
+                            <span class="btn-icon">☁️</span> SharePoint
+                        </button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="resultsTable">
+                        <thead id="resultsHead"></thead>
+                        <tbody id="resultsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Mensagens -->
+            <div id="errorDiv" class="error-message" style="display: none;"></div>
+            <div id="successDiv" class="success-message" style="display: none;"></div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div class="container">
+                <p>&copy; 2025 Sistema de Consultas Remotas - USEB</p>
+                <p class="footer-status">
+                    <span class="status-dot" id="apiStatus"></span>
+                    <span id="apiStatusText">Conectado</span>
+                </p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>
