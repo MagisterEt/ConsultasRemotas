@@ -45,6 +45,7 @@
 
     <!-- Memory Cache e Performance -->
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="9.0.0" />
 
     <!-- CORS e Security -->
     <PackageReference Include="Microsoft.AspNetCore.Cors" Version="2.2.0" />
