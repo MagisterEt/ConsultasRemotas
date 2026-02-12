@@ -10,6 +10,8 @@
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <TieredCompilation>true</TieredCompilation>
     <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- Incluir arquivos estáticos no publish -->
+    <CopyWebRootToPublish>true</CopyWebRootToPublish>
   </PropertyGroup>
 
   <ItemGroup>
