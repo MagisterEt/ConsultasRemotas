@@ -27,6 +27,40 @@ APP_DIR="/opt/consultas-remotas"
 SERVICE_USER="consultas"
 DOTNET_VERSION="8.0"
 
+# ========================================
+# VALIDAÇÃO DE PRÉ-REQUISITOS
+# ========================================
+if [ -f validate-prereqs.sh ] && [ -x validate-prereqs.sh ]; then
+    echo -e "${YELLOW}Validando pré-requisitos...${NC}"
+    echo ""
+
+    # Rodar como usuário normal se possível (não root)
+    if [ -n "$SUDO_USER" ]; then
+        sudo -u "$SUDO_USER" ./validate-prereqs.sh
+    else
+        ./validate-prereqs.sh
+    fi
+
+    VALIDATION_RESULT=$?
+
+    if [ $VALIDATION_RESULT -eq 0 ]; then
+        echo ""
+        echo -e "${GREEN}✓ Validação concluída. Continuando com deployment...${NC}"
+        echo ""
+    else
+        echo ""
+        echo -e "${YELLOW}A validação encontrou problemas.${NC}"
+        read -p "Deseja continuar mesmo assim? (s/N): " continue_deploy
+        if [[ ! $continue_deploy =~ ^[Ss]$ ]]; then
+            echo -e "${RED}Deployment cancelado.${NC}"
+            exit $VALIDATION_RESULT
+        fi
+        echo ""
+        echo -e "${YELLOW}Continuando deployment apesar dos avisos...${NC}"
+        echo ""
+    fi
+fi
+
 # 1. Instalar .NET 8 SDK/Runtime
 echo -e "${GREEN}[1/7] Instalando .NET ${DOTNET_VERSION}...${NC}"
 wget https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb

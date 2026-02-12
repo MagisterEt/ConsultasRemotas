@@ -15,6 +15,32 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# ========================================
+# VALIDAÇÃO DE PRÉ-REQUISITOS
+# ========================================
+if [ -f validate-prereqs.sh ] && [ -x validate-prereqs.sh ]; then
+    echo -e "${YELLOW}Validando pré-requisitos...${NC}"
+    echo ""
+
+    if ./validate-prereqs.sh; then
+        echo ""
+        echo -e "${GREEN}✓ Validação concluída. Continuando com deployment...${NC}"
+        echo ""
+    else
+        EXIT_CODE=$?
+        echo ""
+        echo -e "${YELLOW}A validação encontrou problemas.${NC}"
+        read -p "Deseja continuar mesmo assim? (s/N): " continue_deploy
+        if [[ ! $continue_deploy =~ ^[Ss]$ ]]; then
+            echo -e "${RED}Deployment cancelado.${NC}"
+            exit $EXIT_CODE
+        fi
+        echo ""
+        echo -e "${YELLOW}Continuando deployment apesar dos avisos...${NC}"
+        echo ""
+    fi
+fi
+
 # Verificar se Docker está instalado
 if ! command -v docker &> /dev/null; then
     echo -e "${YELLOW}Docker não encontrado. Instalando...${NC}"

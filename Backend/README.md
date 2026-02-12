@@ -2,7 +2,29 @@
 
 Sistema de consultas SQL distribuídas otimizado para Ubuntu/Linux, desenvolvido em C# com ASP.NET Core 8.
 
-## 🚀 Características
+## 🚀 Início Rápido para Ubuntu
+
+**Primeira vez? Siga estes 3 passos:**
+
+```bash
+# 1. Configure credenciais
+./setup-wizard.sh
+
+# 2. Valide ambiente
+./validate-prereqs.sh
+
+# 3. Deploy
+./deploy-docker.sh
+```
+
+**Pronto!** Acesse: `http://localhost:8080/swagger`
+
+📋 **Checklist completo**: Ver [DEPLOYMENT-CHECKLIST.md](DEPLOYMENT-CHECKLIST.md)
+📖 **Guia detalhado**: Ver [QUICKSTART-UBUNTU.md](QUICKSTART-UBUNTU.md)
+
+---
+
+## 🌟 Características
 
 - **Performance Otimizada para Linux/Ubuntu**: Kestrel configurado para alta performance
 - **Consultas Paralelas**: Execução simultânea em múltiplos servidores SQL usando async/await
