@@ -10,6 +10,8 @@ let consultasDisponiveis = {};
 let eventSource = null;
 let requestIdAtual = null;
 let consultaEmAndamento = false;
+let intervalLogs = null;
+let ultimoLogIndex = 0;
 
 document.addEventListener('DOMContentLoaded', function() {
     verificarStatusServidor();
@@ -21,14 +23,13 @@ document.addEventListener('DOMContentLoaded', function() {
 // Carregar consultas
 // ============================================================
 function carregarConsultasDisponiveis() {
-    fetch('/api/consultas_disponiveis')
+    fetch('/api/consultas/disponiveis')
         .then(response => response.json())
         .then(data => {
-            if (data.status === 'sucesso' && data.consultas) {
-                consultasDisponiveis = {};
-                data.consultas.forEach(c => consultasDisponiveis[c.tipo] = c);
-                popularDropdownConsultas(data.consultas);
-            }
+            const consultas = Array.isArray(data) ? data : (data.consultas || []);
+            consultasDisponiveis = {};
+            consultas.forEach(c => consultasDisponiveis[c.tipo] = c);
+            popularDropdownConsultas(consultas);
         })
         .catch(error => console.error('Erro:', error));
 }
@@ -210,191 +211,161 @@ function executarConsulta() {
     mostrarLoading();
     iniciarConsulta();
 
-    if (consulta.tipo_execucao === 'multi_servidor' || consulta.tipo_execucao === 'multi_banco') {
-        executarConsultaMultiServidor(tipo, formData, consulta);
-    } else {
-        executarConsultaSingleServidor(tipo, formData);
-    }
+    executarConsultaPreDefinida(tipo, formData);
 }
 
 // ============================================================
 // Single servidor
 // ============================================================
-function executarConsultaSingleServidor(tipo, formData) {
-    fetch('/api/consultar', {
+function executarConsultaPreDefinida(tipo, formData) {
+    fetch('/api/consultas/executar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            tipo, entidade: formData.get('entidade'), ano: formData.get('ano'),
-            periodo: formData.get('periodo'), codigo_imobilizado: formData.get('codigo_imobilizado'),
-            upload_sharepoint: false
+            tipo,
+            entidade: formData.get('entidade') || null,
+            ano: formData.get('ano') ? parseInt(formData.get('ano')) : null,
+            periodo: formData.get('periodo') ? parseInt(formData.get('periodo')) : null,
+            data_limite: formData.get('data_limite') || null,
+            meses_atras: formData.get('meses_atras') ? parseInt(formData.get('meses_atras')) : null
         })
     })
     .then(r => r.json())
     .then(data => {
         esconderLoading();
         finalizarConsulta();
-        if (data.status === 'erro') mostrarErro(data.mensagem);
-        else { dadosConsulta = data.dados; colunasOrdenadas = data.colunas || []; mostrarResultados(data); }
-    })
-    .catch(e => { esconderLoading(); finalizarConsulta(); mostrarErro('Erro: ' + e.message); });
-}
 
-// ============================================================
-// Multi-servidor
-// ============================================================
-function executarConsultaMultiServidor(tipo, formData, consulta) {
-    let requestData = { tipo, upload_sharepoint: false };
-    
-    if (tipo === 'personalizada') {
-        const sql = document.getElementById('sqlPersonalizado').value;
-        if (!sql.trim()) { esconderLoading(); finalizarConsulta(); mostrarErro('Digite uma query SQL'); return; }
-        requestData.query = sql;
-    }
-    
-    if (consulta.requer_ano || consulta.requer_periodo) {
-        requestData.ano = formData.get('ano') || new Date().getFullYear();
-        requestData.periodo = formData.get('periodo') || new Date().getMonth() + 1;
-    }
-    
-    if (consulta.requer_data_limite) {
-        requestData.data_limite = formData.get('data_limite') || new Date().toISOString().split('T')[0];
-    }
-    
-    if (consulta.requer_saldo_anterior) {
-        const cb = document.getElementById('incluirSaldoAnterior');
-        if (cb && cb.checked) requestData.incluir_saldo_anterior = true;
-    }
-    
-    if (consulta.requer_meses_atras) {
-        requestData.meses_atras = formData.get('meses_atras') || 2;
-    }
-
-    // Painel de logs
-    mostrarPainelLogs();
-    limparLogs();
-    adicionarLog('🚀 Iniciando consulta...', 'info');
-
-    fetch('/api/consultar_multi', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestData)
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.status === 'iniciado' && data.request_id) {
-            requestIdAtual = data.request_id;
-            adicionarLog(`📡 Consulta iniciada (ID: ${data.request_id.slice(0, 8)}...)`, 'info');
-            
-            // Iniciar SSE para logs em tempo real
-            iniciarSSE(data.request_id);
-        } else if (data.status === 'erro') {
-            esconderLoading();
-            finalizarConsulta();
-            adicionarLog('❌ ' + data.mensagem, 'error');
-            mostrarErro(data.mensagem);
+        if (data.error) {
+            mostrarErro(data.error);
+            return;
         }
+
+        if (data.status && data.status !== 'sucesso') {
+            mostrarErro(data.mensagem || 'Erro ao executar consulta');
+            return;
+        }
+
+        codex/fix-version-conflict-for-diagnosticsource-wz062u
+        const normalizado = normalizarResultadoApi(data);
+        dadosConsulta = normalizado.dados || [];
+        colunasOrdenadas = normalizado.colunas || [];
+        requestIdAtual = data.request_id || null;
+
+        if (normalizado.avisos && normalizado.avisos.length) {
+            mostrarPainelLogs();
+            normalizado.avisos.forEach(a => adicionarLog('⚠️ ' + a, 'warning'));
+        }
+
+        if (requestIdAtual) {
+            iniciarSSE(requestIdAtual);
+        } else {
+            mostrarResultados(normalizado);
+
+        dadosConsulta = data.dados || [];
+        colunasOrdenadas = data.colunas || [];
+        requestIdAtual = data.request_id || null;
+
+        if (data.avisos && data.avisos.length) {
+            data.avisos.forEach(a => adicionarLog('⚠️ ' + a, 'warning'));
+        claude/optimize-csharp-ubuntu-du8RP
+        }
+
+        mostrarResultados(data);
     })
     .catch(e => {
         esconderLoading();
         finalizarConsulta();
-        adicionarLog('❌ Erro: ' + e.message, 'error');
         mostrarErro('Erro: ' + e.message);
     });
 }
 
 // ============================================================
-// SSE - Server-Sent Events
+// Multi-servidor
 // ============================================================
+        codex/fix-version-conflict-for-diagnosticsource-wz062u
+function executarConsultaMultiServidor(tipo, formData, consulta) {
+    mostrarPainelLogs();
+    limparLogs();
+    adicionarLog('🚀 Iniciando consulta...', 'info');
+
+    executarConsultaPreDefinida(tipo, formData);
+}
+
 function iniciarSSE(requestId) {
-    if (eventSource) eventSource.close();
-    
-    eventSource = new EventSource(`/api/logs/${requestId}`);
-    
-    eventSource.onmessage = function(event) {
-        const msg = event.data;
-        
-        if (msg === 'DONE') {
-            eventSource.close();
-            eventSource = null;
-            
-            // Buscar resultado final
-            buscarResultado(requestId);
-            return;
-        }
-        
-        if (msg.trim() === '') return; // heartbeat
-        
-        let tipo = 'info';
-        if (msg.includes('✅') || msg.includes('sucesso') || msg.includes('Concluído')) tipo = 'success';
-        else if (msg.includes('❌') || msg.includes('erro') || msg.includes('Erro')) tipo = 'error';
-        else if (msg.includes('⏱️') || msg.includes('⚠️') || msg.includes('⛔') || msg.includes('Cancelad')) tipo = 'warning';
-        
-        adicionarLog(msg, tipo);
+    if (!requestId) return;
+
+    if (intervalLogs) {
+        clearInterval(intervalLogs);
+        intervalLogs = null;
+    }
+
+    ultimoLogIndex = 0;
+    requestIdAtual = requestId;
+
+    const poll = () => {
+        fetch(`/api/logs/${requestId}`)
+            .then(r => r.json())
+            .then(data => {
+                const logs = data.logs || [];
+                for (let i = ultimoLogIndex; i < logs.length; i++) {
+                    const msg = logs[i];
+                    let tipo = 'info';
+                    const lower = msg.toLowerCase();
+                    if (lower.includes('erro')) tipo = 'error';
+                    else if (lower.includes('conclu') || lower.includes('sucesso')) tipo = 'success';
+                    else if (lower.includes('cancel')) tipo = 'warning';
+                    adicionarLog(msg, tipo);
+                }
+                ultimoLogIndex = logs.length;
+            })
+            .catch(() => {});
+
+        fetch(`/api/status/${requestId}`)
+            .then(r => r.json())
+            .then(status => {
+                const st = (status.status || '').toLowerCase();
+                if (st === 'completed' || st === 'error' || st === 'cancelled') {
+                    clearInterval(intervalLogs);
+                    intervalLogs = null;
+                    buscarResultado(requestId);
+                }
+            })
+            .catch(() => {});
     };
-    
-    eventSource.onerror = function() {
-        if (eventSource) {
-            eventSource.close();
-            eventSource = null;
-        }
-        // Tentar buscar resultado mesmo com erro no SSE
-        if (requestIdAtual) {
-            setTimeout(() => buscarResultado(requestIdAtual), 1000);
-        }
-    };
+
+    poll();
+    intervalLogs = setInterval(poll, 2000);
 }
 
 function buscarResultado(requestId) {
     fetch(`/api/resultado/${requestId}`)
         .then(r => r.json())
         .then(data => {
+            const normalizado = normalizarResultadoApi(data);
+            dadosConsulta = normalizado.dados || [];
+            colunasOrdenadas = normalizado.colunas || [];
+            mostrarResultados(normalizado);
             esconderLoading();
             finalizarConsulta();
-            
-            if (data.status === 'processando') {
-                // Ainda processando, tentar novamente
-                setTimeout(() => buscarResultado(requestId), 1000);
-                return;
-            }
-            
-            if (data.status === 'cancelado') {
-                adicionarLog('⛔ Consulta foi cancelada', 'warning');
-                if (data.dados && data.dados.length > 0) {
-                    dadosConsulta = data.dados;
-                    colunasOrdenadas = data.colunas || [];
-                    mostrarResultados(data);
-                    mostrarToast(`Cancelado com ${data.dados.length} resultados parciais`, 'warning');
-                }
-                return;
-            }
-            
-            if (data.status === 'erro') {
-                adicionarLog('❌ ' + data.mensagem, 'error');
-                mostrarErro(data.mensagem);
-                return;
-            }
-            
-            // Sucesso
-            dadosConsulta = data.dados || [];
-            colunasOrdenadas = data.colunas || [];
-            
-            let logMsg = `✅ Finalizado: ${data.linhas_afetadas || 0} linhas`;
-            if (data.tempo_total) logMsg += ` em ${data.tempo_total}s`;
-            adicionarLog(logMsg, 'success');
-            
-            mostrarResultados(data);
         })
-        .catch(e => {
+        .catch(() => {
             esconderLoading();
             finalizarConsulta();
-            adicionarLog('❌ Erro ao buscar resultado: ' + e.message, 'error');
         });
+
+function executarConsultaMultiServidor(...args) {
+    console.warn('executarConsultaMultiServidor desativado: usando /api/consultas/executar');
 }
 
-// ============================================================
-// Logs
-// ============================================================
+function iniciarSSE(...args) {
+    console.warn('iniciarSSE desativado: usando /api/consultas/executar');
+}
+
+function buscarResultado(...args) {
+    console.warn('buscarResultado desativado: usando /api/consultas/executar');
+        claude/optimize-csharp-ubuntu-du8RP
+}
+
 function mostrarPainelLogs() {
     const painel = document.getElementById('logsPainelDiv');
     if (painel) painel.style.display = 'block';
@@ -420,6 +391,30 @@ function adicionarLog(mensagem, tipo = 'info') {
     logItem.textContent = `[${hora}] ${mensagem}`;
     container.appendChild(logItem);
     container.scrollTop = container.scrollHeight;
+}
+
+
+function normalizarResultadoApi(data) {
+    if (data && data.dados) {
+        return {
+            ...data,
+            linhas_afetadas: data.total_linhas || data.dados.length,
+            tempo_total: data.tempo_segundos
+        };
+    }
+
+    if (data && data.results) {
+        return {
+            status: data.status || 'sucesso',
+            dados: data.results || [],
+            colunas: data.results && data.results.length ? Object.keys(data.results[0]) : [],
+            avisos: (data.errors || []).map(e => `${e.servidor || 'Servidor'}: ${e.error}`),
+            linhas_afetadas: data.total_rows || 0,
+            tempo_total: data.execution_time_ms ? (data.execution_time_ms / 1000).toFixed(2) : null
+        };
+    }
+
+    return { status: 'erro', dados: [], colunas: [], avisos: ['Resposta inválida da API'] };
 }
 
 // ============================================================
