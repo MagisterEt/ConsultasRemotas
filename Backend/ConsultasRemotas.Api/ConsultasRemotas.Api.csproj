@@ -24,9 +24,6 @@
     <PackageReference Include="ClosedXML" Version="0.102.2" />
     <PackageReference Include="CsvHelper" Version="30.0.1" />
 
-    <!-- Parquet Support -->
-    <PackageReference Include="Parquet.Net" Version="4.17.0" />
-
     <!-- SignalR para logs em tempo real -->
     <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.1.0" />
 

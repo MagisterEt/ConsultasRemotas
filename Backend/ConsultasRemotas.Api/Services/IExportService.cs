@@ -15,11 +15,6 @@ public interface IExportService
     Task<byte[]> ExportToExcelAsync(List<Dictionary<string, object>> data, string? sheetName = null);
 
     /// <summary>
-    /// Exporta dados para Parquet
-    /// </summary>
-    Task<byte[]> ExportToParquetAsync(List<Dictionary<string, object>> data);
-
-    /// <summary>
     /// Determina o content type baseado no formato
     /// </summary>
     string GetContentType(string format);

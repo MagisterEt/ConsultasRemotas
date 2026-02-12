@@ -213,12 +213,8 @@ public class QueryController : ControllerBase
                     fileContent = await _exportService.ExportToExcelAsync(result.Results, "Consulta");
                     break;
 
-                case "parquet":
-                    fileContent = await _exportService.ExportToParquetAsync(result.Results);
-                    break;
-
                 default:
-                    return BadRequest(new { error = "Formato não suportado. Use: csv, xlsx ou parquet" });
+                    return BadRequest(new { error = "Formato não suportado. Use: csv ou xlsx" });
             }
 
             var contentType = _exportService.GetContentType(formato);
@@ -264,12 +260,8 @@ public class QueryController : ControllerBase
                     fileContent = await _exportService.ExportToExcelAsync(result.Results, "Consulta");
                     break;
 
-                case "parquet":
-                    fileContent = await _exportService.ExportToParquetAsync(result.Results);
-                    break;
-
                 default:
-                    return BadRequest(new { error = "Formato não suportado" });
+                    return BadRequest(new { error = "Formato não suportado. Use: csv ou xlsx" });
             }
 
             var url = await _sharePointService.UploadFileAsync(fileContent, fileName);

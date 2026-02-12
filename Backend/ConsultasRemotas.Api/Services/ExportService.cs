@@ -1,9 +1,6 @@
 using ClosedXML.Excel;
 using CsvHelper;
 using CsvHelper.Configuration;
-using Parquet;
-using Parquet.Data;
-using System.Dynamic;
 using System.Globalization;
 using System.Text;
 
@@ -119,55 +116,12 @@ public class ExportService : IExportService
         });
     }
 
-    public async Task<byte[]> ExportToParquetAsync(List<Dictionary<string, object>> data)
-    {
-        if (!data.Any())
-        {
-            throw new InvalidOperationException("Não há dados para exportar");
-        }
-
-        var headers = data.First().Keys.ToList();
-
-        // Criar schema do Parquet (API versão 4.x)
-        var schema = new ParquetSchema(
-            headers.Select(h => new DataField<string>(h)).ToArray()
-        );
-
-        using var stream = new MemoryStream();
-
-        // Criar arquivo Parquet (API versão 4.x)
-        using (var parquetWriter = await ParquetWriter.CreateAsync(schema, stream))
-        {
-            parquetWriter.CompressionMethod = CompressionMethod.Snappy;
-
-            // Criar grupo de rows
-            using (var groupWriter = parquetWriter.CreateRowGroup())
-            {
-                // Escrever cada coluna
-                for (int i = 0; i < headers.Count; i++)
-                {
-                    var header = headers[i];
-                    var columnData = data
-                        .Select(row => row.ContainsKey(header) ? ConvertToString(row[header]) : "")
-                        .ToArray();
-
-                    await groupWriter.WriteColumnAsync(new DataColumn(
-                        schema.DataFields[i],
-                        columnData));
-                }
-            }
-        }
-
-        return stream.ToArray();
-    }
-
     public string GetContentType(string format)
     {
         return format.ToLower() switch
         {
             "csv" => "text/csv",
             "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "parquet" => "application/octet-stream",
             _ => "application/octet-stream"
         };
     }
