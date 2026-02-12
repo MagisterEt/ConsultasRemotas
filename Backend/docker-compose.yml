@@ -7,13 +7,49 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+    env_file:
+      - .env
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
 
-      # SQL Server Config (substitua pelos valores reais)
+      # SQL Server - todos os servidores usam as mesmas credenciais base
+      # Também expõe SQL_* para fallback em runtime dentro do container
+      - SQL_USER=${SQL_USER}
+      - SQL_PASSWORD=${SQL_PASSWORD}
+      - SQL_USER_APS=${SQL_USER_APS}
+      - SQL_PASSWORD_APS=${SQL_PASSWORD_APS}
+
       - SqlServer__Servers__0__User=${SQL_USER}
       - SqlServer__Servers__0__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__1__User=${SQL_USER}
+      - SqlServer__Servers__1__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__2__User=${SQL_USER}
+      - SqlServer__Servers__2__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__3__User=${SQL_USER}
+      - SqlServer__Servers__3__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__4__User=${SQL_USER}
+      - SqlServer__Servers__4__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__5__User=${SQL_USER}
+      - SqlServer__Servers__5__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__6__User=${SQL_USER}
+      - SqlServer__Servers__6__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__7__User=${SQL_USER}
+      - SqlServer__Servers__7__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__8__User=${SQL_USER}
+      - SqlServer__Servers__8__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__9__User=${SQL_USER}
+      - SqlServer__Servers__9__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__10__User=${SQL_USER}
+      - SqlServer__Servers__10__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__11__User=${SQL_USER}
+      - SqlServer__Servers__11__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__12__User=${SQL_USER}
+      - SqlServer__Servers__12__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__13__User=${SQL_USER}
+      - SqlServer__Servers__13__Password=${SQL_PASSWORD}
+      - SqlServer__Servers__14__User=${SQL_USER}
+      - SqlServer__Servers__14__Password=${SQL_PASSWORD}
 
       # Azure AD Config
       - AzureAd__TenantId=${AZURE_TENANT_ID}
@@ -30,7 +66,8 @@ services:
 
     volumes:
       - ./logs:/app/logs
-      - ./static:/app/wwwroot
+      - ../templates/index.html:/app/wwwroot/index.html:ro
+      - ../static:/app/wwwroot/static:ro
     networks:
       - consultas-network
 

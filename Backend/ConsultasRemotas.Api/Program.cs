@@ -115,6 +115,7 @@ builder.Services.AddSingleton<IQueryExecutorService, QueryExecutorService>();
 builder.Services.AddSingleton<ISharePointService, SharePointService>();
 builder.Services.AddSingleton<IExportService, ExportService>();
 builder.Services.AddSingleton<ILogStreamService, LogStreamService>();
+builder.Services.AddSingleton<IConsultaPreDefinidaService, ConsultaPreDefinidaService>();
 
 // HttpClient para Graph API
 builder.Services.AddHttpClient("GraphAPI", client =>

@@ -20,13 +20,16 @@ public class SqlServerInfo
     public string Password { get; set; } = string.Empty;
     public string DefaultDatabase { get; set; } = "AASI";
 
-    public string GetConnectionString(string? database = null)
+    public string GetConnectionString(string? database = null, string? user = null, string? password = null)
     {
         var db = database ?? DefaultDatabase;
+        var resolvedUser = string.IsNullOrWhiteSpace(user) ? User : user;
+        var resolvedPassword = string.IsNullOrWhiteSpace(password) ? Password : password;
+
         return $"Server={Host},{Port};" +
                $"Database={db};" +
-               $"User Id={User};" +
-               $"Password={Password};" +
+               $"User Id={resolvedUser};" +
+               $"Password={resolvedPassword};" +
                $"TrustServerCertificate=True;" +
                $"Encrypt=False;" +
                $"Connection Timeout=60;" +

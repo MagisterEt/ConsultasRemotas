@@ -12,6 +12,7 @@ public class QueryController : ControllerBase
     private readonly IExportService _exportService;
     private readonly ISharePointService _sharePointService;
     private readonly ILogStreamService _logStreamService;
+    private readonly IConsultaPreDefinidaService _consultaPreDefinidaService;
     private readonly ILogger<QueryController> _logger;
 
     public QueryController(
@@ -19,12 +20,14 @@ public class QueryController : ControllerBase
         IExportService exportService,
         ISharePointService sharePointService,
         ILogStreamService logStreamService,
+        IConsultaPreDefinidaService consultaPreDefinidaService,
         ILogger<QueryController> logger)
     {
         _queryExecutor = queryExecutor;
         _exportService = exportService;
         _sharePointService = sharePointService;
         _logStreamService = logStreamService;
+        _consultaPreDefinidaService = consultaPreDefinidaService;
         _logger = logger;
     }
 
@@ -73,6 +76,27 @@ public class QueryController : ControllerBase
         };
 
         return Ok(consultas);
+    }
+
+
+    [HttpGet("consultas/disponiveis")]
+    public IActionResult ListarConsultasPreDefinidas()
+    {
+        return Ok(_consultaPreDefinidaService.ListarConsultas());
+    }
+
+    [HttpPost("consultas/executar")]
+    public async Task<IActionResult> ExecutarConsultaPreDefinida([FromBody] ExecutarConsultaPreDefinidaRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _consultaPreDefinidaService.ExecutarAsync(request, cancellationToken);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     /// <summary>
