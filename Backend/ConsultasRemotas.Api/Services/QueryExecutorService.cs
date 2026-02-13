@@ -438,11 +438,34 @@ public class QueryExecutorService : IQueryExecutorService
         }
     }
 
+    /// <summary>
+    /// Sanitiza input para prevenir SQL injection
+    /// </summary>
+    private static string SanitizeSqlInput(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return "";
+
+        // Escapa aspas simples (padrão SQL) e remove caracteres perigosos
+        return input.Replace("'", "''")
+                    .Replace(";", "")
+                    .Replace("--", "")
+                    .Replace("/*", "")
+                    .Replace("*/", "")
+                    .Replace("xp_", "")
+                    .Replace("sp_", "")
+                    .Replace("EXEC", "", StringComparison.OrdinalIgnoreCase)
+                    .Replace("EXECUTE", "", StringComparison.OrdinalIgnoreCase)
+                    .Replace("DROP", "", StringComparison.OrdinalIgnoreCase)
+                    .Replace("DELETE", "", StringComparison.OrdinalIgnoreCase)
+                    .Replace("TRUNCATE", "", StringComparison.OrdinalIgnoreCase)
+                    .Trim();
+    }
+
     private string BuildLotesSemAnexoQuery(Dictionary<string, object> parametros)
     {
-        var entidade = parametros.GetValueOrDefault("entidade", "").ToString();
-        var dataInicio = parametros.GetValueOrDefault("data_inicio", "").ToString();
-        var dataFim = parametros.GetValueOrDefault("data_fim", "").ToString();
+        var entidade = SanitizeSqlInput(parametros.GetValueOrDefault("entidade", "").ToString());
+        var dataInicio = SanitizeSqlInput(parametros.GetValueOrDefault("data_inicio", "").ToString());
+        var dataFim = SanitizeSqlInput(parametros.GetValueOrDefault("data_fim", "").ToString());
 
         var query = @"
             SELECT
@@ -481,8 +504,8 @@ public class QueryExecutorService : IQueryExecutorService
 
     private string BuildAquisicoesQuery(Dictionary<string, object> parametros)
     {
-        var entidade = parametros.GetValueOrDefault("entidade", "").ToString();
-        var ano = parametros.GetValueOrDefault("ano", "").ToString();
+        var entidade = SanitizeSqlInput(parametros.GetValueOrDefault("entidade", "").ToString());
+        var ano = SanitizeSqlInput(parametros.GetValueOrDefault("ano", "").ToString());
 
         var query = @"
             SELECT
@@ -515,8 +538,8 @@ public class QueryExecutorService : IQueryExecutorService
 
     private string BuildBaixasQuery(Dictionary<string, object> parametros)
     {
-        var entidade = parametros.GetValueOrDefault("entidade", "").ToString();
-        var ano = parametros.GetValueOrDefault("ano", "").ToString();
+        var entidade = SanitizeSqlInput(parametros.GetValueOrDefault("entidade", "").ToString());
+        var ano = SanitizeSqlInput(parametros.GetValueOrDefault("ano", "").ToString());
 
         var query = @"
             SELECT
