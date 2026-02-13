@@ -45,12 +45,17 @@ class ConsultasApp {
     async loadAvailableQueries() {
         try {
             const response = await fetch(`${this.apiBase}/consultas_disponiveis`);
-            const data = await response.json();
 
+            if (!response.ok) {
+                throw new Error(`Erro ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
             this.availableQueries = data;
             this.populateQuerySelect(data);
         } catch (error) {
             this.showError('Erro ao carregar consultas disponíveis: ' + error.message);
+            console.error('Erro detalhado:', error);
         }
     }
 
@@ -186,7 +191,9 @@ class ConsultasApp {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Erro ao executar consulta');
+                // Mostrar erro mais detalhado
+                const errorMsg = data.error || data.message || `Erro ${response.status}: ${response.statusText}`;
+                throw new Error(errorMsg);
             }
 
             this.currentRequestId = data.request_id;
@@ -198,7 +205,8 @@ class ConsultasApp {
 
         } catch (error) {
             this.hideLoading();
-            this.showError('Erro: ' + error.message);
+            this.showError('Erro ao executar consulta: ' + error.message);
+            console.error('Erro detalhado:', error);
         }
     }
 
@@ -338,7 +346,14 @@ class ConsultasApp {
 
     async checkApiStatus() {
         try {
-            const response = await fetch('/health');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+            const response = await fetch('/health', {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
             const statusDot = document.getElementById('apiStatus');
             const statusText = document.getElementById('apiStatusText');
 
@@ -347,13 +362,19 @@ class ConsultasApp {
                 statusText.textContent = 'API Conectada';
             } else {
                 statusDot.classList.add('offline');
-                statusText.textContent = 'API Offline';
+                statusText.textContent = `API Offline (${response.status})`;
             }
         } catch (error) {
             const statusDot = document.getElementById('apiStatus');
             const statusText = document.getElementById('apiStatusText');
             statusDot.classList.add('offline');
-            statusText.textContent = 'API Offline';
+
+            if (error.name === 'AbortError') {
+                statusText.textContent = 'API Offline (timeout)';
+            } else {
+                statusText.textContent = `API Offline: ${error.message}`;
+            }
+            console.error('Status check error:', error);
         }
 
         // Verificar novamente em 30s
