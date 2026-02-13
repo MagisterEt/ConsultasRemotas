@@ -113,8 +113,21 @@ public class QueryExecutorService : IQueryExecutorService
 
         try
         {
+            // Construir query se tipo_consulta foi fornecido
+            if (!string.IsNullOrWhiteSpace(request.TipoConsulta) && string.IsNullOrWhiteSpace(request.Query))
+            {
+                request.Query = BuildPredefinedQuery(request.TipoConsulta, request.Parametros ?? new Dictionary<string, object>());
+            }
+
+            // Validar que temos uma query para executar
+            if (string.IsNullOrWhiteSpace(request.Query))
+            {
+                throw new ArgumentException("Query ou tipo_consulta deve ser fornecido");
+            }
+
             UpdateStatus(requestId, "running", "Iniciando consulta em múltiplos servidores...");
             await _logStreamService.LogAsync(requestId, "=== INÍCIO DA CONSULTA MULTI-SERVIDOR ===");
+            await _logStreamService.LogAsync(requestId, $"Query: {request.Query}");
 
             // Determinar quais servidores usar
             var servers = request.Servidores != null && request.Servidores.Any()
@@ -402,5 +415,135 @@ public class QueryExecutorService : IQueryExecutorService
             executionStatus.CompletedAt = DateTime.UtcNow;
             executionStatus.Progress = 100;
         }
+    }
+
+    /// <summary>
+    /// Constrói query SQL baseada em tipo predefinido e parâmetros
+    /// </summary>
+    private string BuildPredefinedQuery(string tipoConsulta, Dictionary<string, object> parametros)
+    {
+        switch (tipoConsulta.ToLower())
+        {
+            case "lotes_sem_anexo":
+                return BuildLotesSemAnexoQuery(parametros);
+
+            case "aquisicoes":
+                return BuildAquisicoesQuery(parametros);
+
+            case "baixas":
+                return BuildBaixasQuery(parametros);
+
+            default:
+                throw new ArgumentException($"Tipo de consulta não reconhecido: {tipoConsulta}");
+        }
+    }
+
+    private string BuildLotesSemAnexoQuery(Dictionary<string, object> parametros)
+    {
+        var entidade = parametros.GetValueOrDefault("entidade", "").ToString();
+        var dataInicio = parametros.GetValueOrDefault("data_inicio", "").ToString();
+        var dataFim = parametros.GetValueOrDefault("data_fim", "").ToString();
+
+        var query = @"
+            SELECT
+                L.NumeroLote,
+                L.DataEmissao,
+                L.Entidade,
+                L.TipoDocumento,
+                L.ValorTotal,
+                CASE WHEN A.IdAnexo IS NULL THEN 'SEM ANEXO' ELSE 'COM ANEXO' END AS Status
+            FROM
+                Lotes L
+            LEFT JOIN
+                Anexos A ON L.IdLote = A.IdLote
+            WHERE
+                A.IdAnexo IS NULL";
+
+        if (!string.IsNullOrWhiteSpace(entidade))
+        {
+            query += $" AND L.Entidade LIKE '%{entidade}%'";
+        }
+
+        if (!string.IsNullOrWhiteSpace(dataInicio))
+        {
+            query += $" AND L.DataEmissao >= '{dataInicio}'";
+        }
+
+        if (!string.IsNullOrWhiteSpace(dataFim))
+        {
+            query += $" AND L.DataEmissao <= '{dataFim}'";
+        }
+
+        query += " ORDER BY L.DataEmissao DESC";
+
+        return query;
+    }
+
+    private string BuildAquisicoesQuery(Dictionary<string, object> parametros)
+    {
+        var entidade = parametros.GetValueOrDefault("entidade", "").ToString();
+        var ano = parametros.GetValueOrDefault("ano", "").ToString();
+
+        var query = @"
+            SELECT
+                A.NumeroAquisicao,
+                A.DataAquisicao,
+                A.Entidade,
+                A.DescricaoBem,
+                A.ValorAquisicao,
+                A.NumeroPatrimonio,
+                A.Fornecedor
+            FROM
+                Aquisicoes A
+            WHERE
+                1=1";
+
+        if (!string.IsNullOrWhiteSpace(entidade))
+        {
+            query += $" AND A.Entidade LIKE '%{entidade}%'";
+        }
+
+        if (!string.IsNullOrWhiteSpace(ano))
+        {
+            query += $" AND YEAR(A.DataAquisicao) = {ano}";
+        }
+
+        query += " ORDER BY A.DataAquisicao DESC";
+
+        return query;
+    }
+
+    private string BuildBaixasQuery(Dictionary<string, object> parametros)
+    {
+        var entidade = parametros.GetValueOrDefault("entidade", "").ToString();
+        var ano = parametros.GetValueOrDefault("ano", "").ToString();
+
+        var query = @"
+            SELECT
+                B.NumeroBaixa,
+                B.DataBaixa,
+                B.Entidade,
+                B.DescricaoBem,
+                B.NumeroPatrimonio,
+                B.MotivoBaixa,
+                B.ValorBaixa
+            FROM
+                Baixas B
+            WHERE
+                1=1";
+
+        if (!string.IsNullOrWhiteSpace(entidade))
+        {
+            query += $" AND B.Entidade LIKE '%{entidade}%'";
+        }
+
+        if (!string.IsNullOrWhiteSpace(ano))
+        {
+            query += $" AND YEAR(B.DataBaixa) = {ano}";
+        }
+
+        query += " ORDER BY B.DataBaixa DESC";
+
+        return query;
     }
 }
